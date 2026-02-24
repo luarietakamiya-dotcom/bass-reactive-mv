@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bass Reactive MV Visualizer</title>
+    <meta name="description" content="静止画と音声から低音に反応するMVビジュアライザーを作成">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.7/coi-serviceworker.min.js"></script>
+    <!-- Upload Screen -->
+    <div id="upload-screen" class="screen active">
+        <div class="upload-container">
+            <h1 class="title">BASS REACTIVE<br><span class="accent">MV VISUALIZER</span></h1>
+            <p class="subtitle">静止画 × ベース = ズンズン</p>
+
+            <div class="upload-zones">
+                <div class="upload-zone" id="image-drop-zone">
+                    <div class="upload-icon">🖼️</div>
+                    <p class="upload-label">静止画をドロップ</p>
+                    <p class="upload-hint">または クリックして選択</p>
+                    <input type="file" id="image-input" accept="image/*" hidden>
+                    <div class="upload-preview" id="image-preview"></div>
+                </div>
+
+                <div class="upload-zone" id="audio-drop-zone">
+                    <div class="upload-icon">🎵</div>
+                    <p class="upload-label">音声をドロップ</p>
+                    <p class="upload-hint">MP3, WAV, OGG</p>
+                    <input type="file" id="audio-input" accept="audio/*" hidden>
+                    <div class="upload-preview" id="audio-preview"></div>
+                </div>
+            </div>
+
+            <button id="start-btn" class="btn-start" disabled>
+                <span class="btn-text">▶ ビジュアライズ開始</span>
+                <span class="btn-glow"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Visualizer Screen -->
+    <div id="visualizer-screen" class="screen">
+        <div id="canvas-wrapper">
+            <canvas id="main-canvas"></canvas>
+        </div>
+
+        <!-- Control Panel -->
+        <div id="control-panel" class="glass-panel">
+            <div class="control-header">
+                <h2>🎛 コントロール</h2>
+                <button id="toggle-panel" class="btn-icon" title="パネル表示切替">◀</button>
+            </div>
+
+            <div class="control-body">
+                <!-- Playback -->
+                <div class="control-section">
+                    <h3>再生</h3>
+                    <div class="playback-controls">
+                        <button id="play-btn" class="btn-control">▶ 再生</button>
+                        <button id="stop-btn" class="btn-control">⏹ 停止</button>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progress-fill"></div>
+                    </div>
+                    <div class="time-display">
+                        <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Bass Sensitivity -->
+                <div class="control-section">
+                    <h3>低音感度</h3>
+                    <div class="slider-group">
+                        <label>感度</label>
+                        <input type="range" id="sensitivity" min="0.1" max="3" step="0.1" value="1.5">
+                        <span id="sensitivity-val">1.5</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>振動の強さ</label>
+                        <input type="range" id="shake-intensity" min="0" max="50" step="1" value="15">
+                        <span id="shake-val">15</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>ズーム量</label>
+                        <input type="range" id="zoom-intensity" min="0" max="0.15" step="0.005" value="0.05">
+                        <span id="zoom-val">0.05</span>
+                    </div>
+                </div>
+
+                <!-- Effects Toggle -->
+                <div class="control-section">
+                    <h3>エフェクト</h3>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-shake" checked>
+                            <span class="toggle-switch"></span>
+                            リング振動
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-ring" checked>
+                            <span class="toggle-switch"></span>
+                            スピーカーリング
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-particles" checked>
+                            <span class="toggle-switch"></span>
+                            パーティクル
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-glow" checked>
+                            <span class="toggle-switch"></span>
+                            グロー
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-text" checked>
+                            <span class="toggle-switch"></span>
+                            BASS DROPテキスト
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Ring Style -->
+                <div class="control-section">
+                    <h3>リングスタイル</h3>
+                    <div class="slider-group">
+                        <label>リングサイズ</label>
+                        <input type="range" id="ring-size" min="0.15" max="0.45" step="0.01" value="0.3">
+                        <span id="ring-size-val">0.3</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>リング色相</label>
+                        <input type="range" id="ring-hue" min="0" max="360" step="1" value="270">
+                        <span id="ring-hue-val">270</span>
+                    </div>
+                    <div class="toggle-group">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="fx-rainbow">
+                            <span class="toggle-switch"></span>
+                            🌈 ゲーミングカラー
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Recording -->
+                <div class="control-section">
+                    <h3>録画</h3>
+                    <button id="record-btn" class="btn-record">⏺ 録画開始</button>
+                    <p class="record-hint" id="record-status">録画準備OK</p>
+                </div>
+
+                <!-- Back -->
+                <div class="control-section">
+                    <button id="back-btn" class="btn-control btn-back">← 戻る</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bass Meter -->
+        <div id="bass-meter" class="glass-panel">
+            <div class="meter-label">BASS</div>
+            <div class="meter-bar">
+                <div id="meter-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js" type="module"></script>
+</body>
+
+</html>
