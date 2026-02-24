@@ -319,8 +319,29 @@ async function startVisualizer() {
 
 function resizeCanvas() {
     const wrapper = document.getElementById('canvas-wrapper');
-    state.canvas.width = wrapper.clientWidth;
-    state.canvas.height = wrapper.clientHeight;
+    const wrapperW = wrapper.clientWidth;
+    const wrapperH = wrapper.clientHeight;
+
+    if (state.image) {
+        // Fit canvas to image aspect ratio (contain)
+        const imgRatio = state.image.width / state.image.height;
+        const wrapperRatio = wrapperW / wrapperH;
+        let canvasW, canvasH;
+        if (imgRatio > wrapperRatio) {
+            // Image is wider than wrapper
+            canvasW = wrapperW;
+            canvasH = wrapperW / imgRatio;
+        } else {
+            // Image is taller than wrapper
+            canvasH = wrapperH;
+            canvasW = wrapperH * imgRatio;
+        }
+        state.canvas.width = Math.round(canvasW);
+        state.canvas.height = Math.round(canvasH);
+    } else {
+        state.canvas.width = wrapperW;
+        state.canvas.height = wrapperH;
+    }
 }
 
 function goBack() {
@@ -480,14 +501,9 @@ function drawFrame(bass) {
     const ctx = state.ctx, w = state.canvas.width, h = state.canvas.height, s = state.settings;
     ctx.save(); ctx.clearRect(0, 0, w, h);
 
-    // Background image - STATIC
+    // Background image - fits canvas exactly
     if (state.image) {
-        const imgW = state.image.width, imgH = state.image.height;
-        const canvasRatio = w / h, imgRatio = imgW / imgH;
-        let drawW, drawH, drawX, drawY;
-        if (imgRatio > canvasRatio) { drawH = h; drawW = h * imgRatio; drawX = (w - drawW) / 2; drawY = 0; }
-        else { drawW = w; drawH = w / imgRatio; drawX = 0; drawY = (h - drawH) / 2; }
-        ctx.drawImage(state.image, drawX, drawY, drawW, drawH);
+        ctx.drawImage(state.image, 0, 0, w, h);
     } else { ctx.fillStyle = '#111'; ctx.fillRect(0, 0, w, h); }
 
     // Vignette
