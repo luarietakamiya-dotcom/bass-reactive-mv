@@ -46,14 +46,18 @@ export function stopRecording(onStatusUpdate) {
         state.mediaRecorder.onstop = async () => {
             state.isRecording = false;
             const webmBlob = new Blob(state.recordedChunks, { type: 'video/webm' });
-            if (onStatusUpdate) onStatusUpdate('converting');
 
+            // 安全のため、変換前にまずオリジナルWebMをダウンロードさせる
+            // 16Mbps等の高画質だとffmpeg.wasmがメモリ不足でクラッシュする可能性があるため
+            const timestamp = Date.now();
+            downloadBlob(webmBlob, `bass-mv-${timestamp}-raw.webm`);
+
+            if (onStatusUpdate) onStatusUpdate('converting');
             try {
                 const mp4Blob = await convertToMP4(webmBlob);
-                downloadBlob(mp4Blob, `bass-mv-${Date.now()}.mp4`);
+                downloadBlob(mp4Blob, `bass-mv-${timestamp}.mp4`);
             } catch (e) {
-                console.warn('MP4 conversion failed, downloading WebM', e);
-                downloadBlob(webmBlob, `bass-mv-${Date.now()}.webm`);
+                console.warn('MP4 conversion failed', e);
             }
             if (onStatusUpdate) onStatusUpdate('done');
             resolve();
@@ -79,12 +83,12 @@ async function convertToMP4(webmBlob) {
     const ffmpeg = ffmpegInstance;
     const data = new Uint8Array(await webmBlob.arrayBuffer());
     await ffmpeg.writeFile('input.webm', data);
-    // CRF 18 = 高品質（0が最高、23がデフォルト）、medium preset = 品質優先
+    // メモリ不足と処理落ちを防ぐため、ultrafastとCRF22を使用
     await ffmpeg.exec([
         '-i', 'input.webm',
         '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '18',
+        '-preset', 'ultrafast',
+        '-crf', '22',
         '-c:a', 'aac', '-b:a', '192k',
         'output.mp4'
     ]);
