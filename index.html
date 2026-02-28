@@ -4,184 +4,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bass Reactive MV Visualizer</title>
-    <meta name="description" content="静止画と音声から低音に反応するMVビジュアライザーを作成">
+    <title>Bass Reactive MV Visualizer — Modular Engine</title>
+    <meta name="description" content="音楽に反応するビジュアルエンジン。スピーカー、スペクトラム、ネオンモジュールを自由に追加。">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Noto+Sans+JP:wght@400;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.7/coi-serviceworker.min.js"></script>
 </head>
 
 <body>
-    <script src="https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.7/coi-serviceworker.min.js"></script>
-    <!-- Upload Screen -->
-    <div id="upload-screen" class="screen active">
-        <div class="upload-container">
-            <h1 class="title">BASS REACTIVE<br><span class="accent">MV VISUALIZER</span></h1>
-            <p class="subtitle">静止画 × ベース = ズンズン</p>
+    <!-- ====== Splash Screen ====== -->
+    <div id="splash-screen" class="screen active">
+        <div class="splash-box">
+            <pre class="splash-text">────────────────────────
+ZUNZUNするやつ
+BASS REACTIVE MV VISUALIZER
+MODULAR VISUAL ENGINE v2.0
+────────────────────────
 
-            <div class="upload-zones">
-                <div class="upload-zone" id="image-drop-zone">
-                    <div class="upload-icon">🖼️</div>
-                    <p class="upload-label">静止画をドロップ</p>
-                    <p class="upload-hint">または クリックして選択</p>
-                    <input type="file" id="image-input" accept="image/*" hidden>
-                    <div class="upload-preview" id="image-preview"></div>
-                </div>
+■ ご利用にあたって
 
-                <div class="upload-zone" id="audio-drop-zone">
-                    <div class="upload-icon">🎵</div>
-                    <p class="upload-label">音声をドロップ</p>
-                    <p class="upload-hint">MP3, WAV, OGG</p>
-                    <input type="file" id="audio-input" accept="audio/*" hidden>
-                    <div class="upload-preview" id="audio-preview"></div>
-                </div>
-            </div>
+・本ツールは趣味制作の個人開発ソフトです。
+・動作保証はありません。
+・使用は自己貣任でお願いします。
 
-            <button id="start-btn" class="btn-start" disabled>
-                <span class="btn-text">▶ ビジュアライズ開始</span>
-                <span class="btn-glow"></span>
-            </button>
+■ 著作権について
+
+・使用する音源・動画・画像・フォント等の
+  著作権は各権利者に帰属します。
+・必ず利用許可のある素材のみ使用してください。
+・本ツールは著作権侵害を助長する目的ではありません。
+
+■ 書き出しについて
+
+・MP4出力には外部エンコーダ（例：FFmpeg）が
+  必要な場合があります。
+・各自の環境で設定を行ってください。
+
+■ 免責事項
+
+・本ツールの使用により発生した
+  データ損失・不具合・損害について、
+  作者は一切の責任を負いません。
+
+────────────────────────</pre>
+            <p class="splash-enter">► ENTER またはクリックで起動</p>
         </div>
     </div>
 
-    <!-- Visualizer Screen -->
+    <!-- ====== Upload Screen ====== -->
+    <div id="upload-screen" class="screen">
+        <div class="upload-bg-particles" id="title-particles"></div>
+        <div class="upload-container">
+            <div class="title-logo-wrap">
+                <img src="assets/logo.png" alt="ZUNZUNするやつ" class="title-logo" id="title-logo">
+            </div>
+            <div class="upload-zones">
+                <div id="image-zone" class="upload-zone">
+                    <input type="file" id="image-input" accept="image/*" hidden>
+                    <div class="upload-icon">🖼</div>
+                    <div class="upload-label">背景画像</div>
+                    <div class="upload-hint">JPG / PNG / WebP</div>
+                    <div id="image-preview" class="upload-preview"></div>
+                </div>
+                <div id="audio-zone" class="upload-zone">
+                    <input type="file" id="audio-input" accept="audio/*" hidden>
+                    <div class="upload-icon">🎵</div>
+                    <div class="upload-label">音声ファイル</div>
+                    <div class="upload-hint">MP3 / WAV / OGG</div>
+                    <div id="audio-preview" class="upload-preview"></div>
+                </div>
+                <div id="video-zone" class="upload-zone">
+                    <input type="file" id="video-input" accept="video/*" hidden>
+                    <div class="upload-icon">🎬</div>
+                    <div class="upload-label">動画（任意）</div>
+                    <div class="upload-hint">MP4 / WebM</div>
+                </div>
+            </div>
+            <div class="title-actions">
+                <button id="start-btn" class="btn-start" disabled>
+                    ▶ ビジュアライザー起動
+                    <span class="btn-glow"></span>
+                </button>
+                <button id="manual-btn" class="btn-manual">📖 説明書</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== Manual Modal ====== -->
+    <div id="manual-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <button class="modal-close" id="manual-close">×</button>
+            <h2>📖 説明書</h2>
+            <div class="manual-content">
+                <h3>📂 ファイル読み込み</h3>
+                <ul>
+                    <li><b>背景画像</b> — JPG/PNG/WebPを背景に設定。ビジュアライザースクリーンの上部バーからも変更可能。</li>
+                    <li><b>音声ファイル</b> — MP3/WAV/OGGを再生。パネルで加工（EQ・コンプレッサー）可能。</li>
+                    <li><b>動画（任意）</b> — MP4/WebMを背景に表示。音声の代わりに動画の音ストリームも使用可能。</li>
+                </ul>
+
+                <h3>🔊 モジュール</h3>
+                <ul>
+                    <li><b>SPEAKER</b> — スピーカー形再生ビジュアライザー。ビートでコーンが伸縮、波紋・パーティクルが発生。</li>
+                    <li><b>SPECTRUM</b> — 周波数スペクトラムビジュアライザー。複数の形式から選択可能。</li>
+                    <li><b>NEON</b> — 透過PNGをネオンエフェクト付きで表示。音楽に合わせてりっぷるや波紋が発生。</li>
+                </ul>
+
+                <h3>🎈 スペクトラム形式</h3>
+                <ul>
+                    <li><b>✨ パーティクル</b> — 鼻の周りからパーティクルが飛び出る。</li>
+                    <li><b>📊 EDM縦バー</b> — 典型的なイコライザー型。</li>
+                    <li><b>⭕ 円形</b> — 円形に配置されたスペクトラム。</li>
+                    <li><b>🌊 パルスライン</b> — 音に合わせて波打つラインタイプ。</li>
+                    <li><b>⇔ L/Rバー</b> — 左スピーカー・右スピーカーを左右分割で表示。</li>
+                    <li><b>↕ 中央対称</b> — 上下対称に伸びるバータイプ。</li>
+                    <li><b>👾 グリッチ</b> — 画面全体がバグったようなエフェクト。</li>
+                    <li><b>🍃 風パーティクル</b> — 風に浮かぶパーティクル。</li>
+                    <li><b>🟢 マトリックス</b> — 落下する文字マトリックス風エフェクト。</li>
+                </ul>
+
+                <h3>⏺ 上部バー</h3>
+                <ul>
+                    <li><b>🖼 背景 / 🎵 音楽 / 🎬 動画</b> — 起動後にファイルを持ち込みできる。</li>
+                    <li><b>▶ 再生 / ⏸ 一時停止 / ⏹ 停止</b> — 再生制御。</li>
+                    <li><b>⏺ 録画</b> — 録画ボタンで最初から再生起動を記録。</li>
+                    <li><b>💾 セーブ / 📂 ロード</b> — 全モジュールの設定をJSONで保存・復元。</li>
+                </ul>
+
+                <h3>⚙ コントロールパネル</h3>
+                <ul>
+                    <li><b>SPEAKERパネル</b> — 左上。再生・録画・グローバル感度・もどるボタン。</li>
+                    <li><b>SPECTRUMパネル</b> — 左下。スペクトラムの追加・設定。</li>
+                    <li><b>EQパネル</b> — 画面右大。Low/Mid/High EQ・バイレイエコー・コンプレッサー。</li>
+                    <li><b>SFXパネル</b> — 画面左大。効果音を手動で再生。</li>
+                </ul>
+
+                <h3>📌 その他</h3>
+                <ul>
+                    <li>モジュールはドラッグで画面内を自由に移動可能。</li>
+                    <li>最大4モジュールまで同時表示可能。</li>
+                    <li>レインボーモードで全モジュールの色が一緒に変化。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== Visualizer Screen ====== -->
     <div id="visualizer-screen" class="screen">
-        <div id="canvas-wrapper">
-            <canvas id="main-canvas"></canvas>
+
+        <!-- Top Bar -->
+        <div id="top-bar">
+            <div class="top-bar-left">
+                <label class="top-bar-btn" title="背景画像を変更">
+                    🖼 背景
+                    <input type="file" id="tb-image-input" accept="image/*" hidden>
+                </label>
+                <label class="top-bar-btn" title="音楽ファイルを変更">
+                    🎵 音楽
+                    <input type="file" id="tb-audio-input" accept="audio/*" hidden>
+                </label>
+                <label class="top-bar-btn" title="動画ファイルを変更">
+                    🎬 動画
+                    <input type="file" id="tb-video-input" accept="video/*" hidden>
+                </label>
+            </div>
+            <div class="top-bar-center">
+                <button class="top-bar-btn top-bar-play" id="play-btn">▶ 再生</button>
+                <button class="top-bar-btn top-bar-stop" id="stop-btn">⏹ 停止</button>
+                <button class="top-bar-btn top-bar-rec" id="record-btn">⏺ 録画</button>
+            </div>
+            <div class="top-bar-right">
+                <select id="record-quality" class="top-bar-select" title="録画品質">
+                    <option value="4000000">高画質 4M</option>
+                    <option value="2000000" selected>標準 2M</option>
+                    <option value="1000000">軽量 1M</option>
+                    <option value="500000">低画質 0.5M</option>
+                </select>
+                <button class="top-bar-btn" id="save-settings-btn" title="現在の設定を保存">💾 セーブ</button>
+                <label class="top-bar-btn" title="設定ファイルを読み込み">
+                    📂 ロード
+                    <input type="file" id="tb-settings-input" accept=".json" hidden>
+                </label>
+                <button class="top-bar-btn top-bar-back" id="back-btn" title="タイトルに戻る">← 戻る</button>
+            </div>
         </div>
 
-        <!-- Control Panel -->
-        <div id="control-panel" class="glass-panel">
-            <div class="control-header">
-                <h2>🎛 コントロール</h2>
-                <button id="toggle-panel" class="btn-icon" title="パネル表示切替">◀</button>
-            </div>
+        <div id="canvas-wrapper">
+            <canvas id="main-canvas"></canvas>
 
+        </div>
+
+        <!-- Left Top Panel: Speaker & Controls -->
+        <div id="speaker-panel" class="glass-panel side-panel left-panel left-top-panel">
+            <div class="panel-tab" id="panel-toggle">⚙</div>
+            <div class="control-header">
+                <h2>🔊 SPEAKER</h2>
+            </div>
             <div class="control-body">
-                <!-- Playback -->
+                <!-- Playback progress -->
                 <div class="control-section">
                     <h3>再生</h3>
-                    <div class="playback-controls">
-                        <button id="play-btn" class="btn-control">▶ 再生</button>
-                        <button id="stop-btn" class="btn-control">⏹ 停止</button>
-                    </div>
                     <div class="progress-bar">
                         <div id="progress-fill"></div>
                     </div>
                     <div class="time-display">
-                        <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                        <span id="current-time">0:00</span>
+                        <span id="total-time">0:00</span>
                     </div>
                 </div>
 
-                <!-- Bass Sensitivity -->
+                <!-- Global Settings -->
                 <div class="control-section">
-                    <h3>低音感度</h3>
+                    <h3>グローバル設定</h3>
                     <div class="slider-group">
                         <label>感度</label>
-                        <input type="range" id="sensitivity" min="0.1" max="3" step="0.1" value="1.5">
+                        <input type="range" id="sensitivity" min="0.5" max="5" step="0.1" value="1.5">
                         <span id="sensitivity-val">1.5</span>
                     </div>
-                    <div class="slider-group">
-                        <label>振動の強さ</label>
-                        <input type="range" id="shake-intensity" min="0" max="50" step="1" value="15">
-                        <span id="shake-val">15</span>
-                    </div>
-                    <div class="slider-group">
-                        <label>ズーム量</label>
-                        <input type="range" id="zoom-intensity" min="0" max="0.15" step="0.005" value="0.05">
-                        <span id="zoom-val">0.05</span>
+                </div>
+
+                <!-- Speaker Add -->
+                <div class="control-section">
+                    <div class="module-add-buttons">
+                        <button id="add-speaker" class="btn-add">🔊 + Speaker</button>
                     </div>
                 </div>
 
-                <!-- Effects Toggle -->
+                <!-- Speaker Module List -->
+                <div id="speaker-module-list"></div>
+
+                <!-- Recording Quality (in top bar) -->
+
+                <!-- Back (in top bar) -->
+
+            </div>
+        </div>
+
+        <!-- Left Bottom Panel: Spectrum & Neon -->
+        <div id="spectrum-panel" class="glass-panel side-panel left-panel left-bottom-panel">
+            <div class="panel-tab" id="spectrum-toggle">📊</div>
+            <div class="control-header">
+                <h2>📊 SPECTRUM & NEON</h2>
+            </div>
+            <div class="control-body">
                 <div class="control-section">
-                    <h3>エフェクト</h3>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-shake" checked>
-                            <span class="toggle-switch"></span>
-                            リング振動
-                        </label>
-                    </div>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-ring" checked>
-                            <span class="toggle-switch"></span>
-                            スピーカーリング
-                        </label>
-                    </div>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-particles" checked>
-                            <span class="toggle-switch"></span>
-                            パーティクル
-                        </label>
-                    </div>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-glow" checked>
-                            <span class="toggle-switch"></span>
-                            グロー
-                        </label>
-                    </div>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-text" checked>
-                            <span class="toggle-switch"></span>
-                            BASS DROPテキスト
-                        </label>
+                    <div class="module-add-buttons">
+                        <button id="add-spectrum" class="btn-add">📊 + Spectrum</button>
+                        <button id="add-neon" class="btn-add">💡 + Neon</button>
                     </div>
                 </div>
 
-                <!-- Ring Style -->
-                <div class="control-section">
-                    <h3>リングスタイル</h3>
-                    <div class="slider-group">
-                        <label>リングサイズ</label>
-                        <input type="range" id="ring-size" min="0.15" max="0.45" step="0.01" value="0.3">
-                        <span id="ring-size-val">0.3</span>
-                    </div>
-                    <div class="slider-group">
-                        <label>リング色相</label>
-                        <input type="range" id="ring-hue" min="0" max="360" step="1" value="270">
-                        <span id="ring-hue-val">270</span>
-                    </div>
-                    <div class="toggle-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="fx-rainbow">
-                            <span class="toggle-switch"></span>
-                            🌈 ゲーミングカラー
-                        </label>
-                    </div>
-                </div>
+                <!-- Spectrum/Neon Module List -->
+                <div id="spectrum-module-list"></div>
+            </div>
+        </div>
 
-                <!-- Recording -->
+        <!-- Bottom Panel: EQ & Audio -->
+        <div id="eq-panel" class="glass-panel bottom-panel collapsed">
+            <div class="bottom-panel-tab" id="eq-toggle">🎚 EQ & AUDIO</div>
+            <div class="bottom-panel-body">
                 <div class="control-section">
-                    <h3>録画</h3>
-                    <button id="record-btn" class="btn-record">⏺ 録画開始</button>
-                    <p class="record-hint" id="record-status">録画準備OK</p>
+                    <h3>イコライザー</h3>
+                    <!-- EQ sliders generated by JS -->
                 </div>
+            </div>
+        </div>
 
-                <!-- Back -->
-                <div class="control-section">
-                    <button id="back-btn" class="btn-control btn-back">← 戻る</button>
-                </div>
+        <!-- SFX Panel -->
+        <div id="sfx-panel" class="glass-panel bottom-panel sfx-panel-pos collapsed">
+            <div class="bottom-panel-tab" id="sfx-toggle">🎵 SFX</div>
+            <div class="bottom-panel-body" id="sfx-panel-body">
+                <!-- filled by JS -->
             </div>
         </div>
 
         <!-- Bass Meter -->
         <div id="bass-meter" class="glass-panel">
-            <div class="meter-label">BASS</div>
+            <span class="meter-label">BASS</span>
             <div class="meter-bar">
                 <div id="meter-fill"></div>
             </div>
         </div>
     </div>
 
-    <script src="app.js" type="module"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>
