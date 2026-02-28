@@ -210,6 +210,8 @@ function loadSettings(file) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
+
+            // ① 感度を復元
             if (data.sensitivity != null) {
                 state.settings.sensitivity = data.sensitivity;
                 if (dom.sensitivity) {
@@ -217,16 +219,45 @@ function loadSettings(file) {
                     dom.sensitivityVal.textContent = data.sensitivity;
                 }
             }
-            if (Array.isArray(data.modules)) {
-                // Try to apply settings to existing modules in order
-                data.modules.forEach((saved, i) => {
-                    const existing = moduleManager.modules[i];
-                    if (existing && existing.type === saved.type) {
-                        Object.assign(existing.settings, saved.settings);
-                        existing.position = { ...saved.position };
-                        if (existing._buildUI) existing._buildUI();
+
+            // ② モジュールを一度全クリア
+            if (Array.isArray(data.modules) && data.modules.length > 0) {
+                moduleManager.clear();
+                if (dom.speakerModuleList) dom.speakerModuleList.innerHTML = '';
+                if (dom.spectrumModuleList) dom.spectrumModuleList.innerHTML = '';
+
+                // ③ 保存されたモジュールを順番に再作成して設定適用
+                data.modules.forEach(saved => {
+                    if (!saved.type) return;
+                    let mod;
+                    switch (saved.type) {
+                        case 'speaker': mod = new SpeakerModule(); break;
+                        case 'spectrum': mod = new SpectrumModule(); break;
+                        case 'neon': mod = new NeonModule(); break;
+                        default: return;
                     }
+
+                    const added = moduleManager.add(mod);
+                    if (!added) return;
+
+                    // 設定適用
+                    if (saved.settings) {
+                        Object.assign(mod.settings, saved.settings);
+                    }
+                    if (saved.position) {
+                        mod.position = { ...saved.position };
+                    }
+
+                    // UI生成（設定適用後）
+                    const targetList = saved.type === 'speaker'
+                        ? dom.speakerModuleList
+                        : dom.spectrumModuleList;
+                    mod.createUI(targetList || dom.moduleList);
+                    // UIに現在のsettingsを反映させる
+                    mod._buildUI?.();
                 });
+
+                updateAddButtons();
             }
         } catch (err) {
             alert('設定ファイルの読み込みに失敗しました: ' + err.message);
@@ -234,6 +265,7 @@ function loadSettings(file) {
     };
     reader.readAsText(file);
 }
+
 
 // ====== Module Management ======
 function addModule(type) {

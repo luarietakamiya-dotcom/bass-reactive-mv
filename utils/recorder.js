@@ -6,7 +6,7 @@ import { state } from '../core/state.js';
 let ffmpegInstance = null;
 let ffmpegLoading = false;
 
-export function startRecording(canvas, onStatusUpdate, bitrate = 2_000_000) {
+export function startRecording(canvas, onStatusUpdate, bitrate = 8_000_000) {
     const stream = canvas.captureStream(60);
     if (state.audioContext && state.audioContext.state === 'running') {
         const dest = state.audioContext.createMediaStreamDestination();
@@ -16,10 +16,14 @@ export function startRecording(canvas, onStatusUpdate, bitrate = 2_000_000) {
         }
     }
 
-    const options = { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: bitrate };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options.mimeType = 'video/webm';
-        options.videoBitsPerSecond = bitrate;
+    // VP9優先（高品質・小サイズ）、非対応ならvp8、さらにwebmにフォールバック
+    let options;
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+        options = { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: bitrate };
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        options = { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: bitrate };
+    } else {
+        options = { mimeType: 'video/webm', videoBitsPerSecond: bitrate };
     }
 
     state.recordedChunks = [];
@@ -75,7 +79,15 @@ async function convertToMP4(webmBlob) {
     const ffmpeg = ffmpegInstance;
     const data = new Uint8Array(await webmBlob.arrayBuffer());
     await ffmpeg.writeFile('input.webm', data);
-    await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'aac', 'output.mp4']);
+    // CRF 18 = 高品質（0が最高、23がデフォルト）、medium preset = 品質優先
+    await ffmpeg.exec([
+        '-i', 'input.webm',
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '18',
+        '-c:a', 'aac', '-b:a', '192k',
+        'output.mp4'
+    ]);
     const result = await ffmpeg.readFile('output.mp4');
     return new Blob([result.buffer], { type: 'video/mp4' });
 }
